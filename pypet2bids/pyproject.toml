@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pypet2bids"
-version = "1.3.11"
+version = "1.3.12"
 description = "A python library for converting PET imaging and blood data to BIDS."
 authors = ["anthony galassi <28850131+bendhouseart@users.noreply.github.com>"]
 license = "MIT"

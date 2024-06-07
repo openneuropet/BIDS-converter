@@ -58,6 +58,12 @@ D:\\BIDS*
 *OpenNeuroPET-Phantoms*
 **PHANTOMS.zip
 ecat_validation/ECAT7_multiframe.v
+variables.env
+ecat_testing/matlab/
+ecat_testing/steps/
+ecat_testing/**/*.nii*
+*osem*
+*fbp*
 
-ecat_testing/
-SiemensHRRTparameters.txt
+matlab/SiemensHRRTparameters.txt
+

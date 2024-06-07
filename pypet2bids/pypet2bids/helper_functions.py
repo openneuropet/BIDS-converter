@@ -725,8 +725,6 @@ def get_recon_method(ReconstructionMethodString: str) -> dict:
     contents = ReconstructionMethodString.replace(" ", "")
     subsets = None
     iterations = None
-    ReconMethodParameterUnits = ["none", "none"]
-    ReconMethodParameterLabels = ["subsets", "iterations"]
 
     # determine order of recon iterations and subsets, this is not  a surefire way to determine this...
     iter_sub_combos = {
@@ -836,11 +834,20 @@ def get_recon_method(ReconstructionMethodString: str) -> dict:
         ReconMethodName = dimension + " " * len(dimension) + expanded_name.rstrip()
         ReconMethodName = " ".join(ReconMethodName.split())
 
+    if ReconMethodName in ["Filtered Back Projection", "3D Reprojection"]:
+        ReconMethodParameterLabels = []
+        ReconMethodParameterUnits = []
+        ReconMethodParameterValues = []
+    else:  # assume it is OSEM or a variant
+        ReconMethodParameterLabels = ["subsets", "iterations"]
+        ReconMethodParameterUnits = ["none", "none"]
+        ReconMethodParameterValues = [subsets, iterations]
+
     reconstruction_dict = {
         "ReconMethodName": ReconMethodName,
         "ReconMethodParameterUnits": ReconMethodParameterUnits,
         "ReconMethodParameterLabels": ReconMethodParameterLabels,
-        "ReconMethodParameterValues": [subsets, iterations],
+        "ReconMethodParameterValues": ReconMethodParameterValues,
     }
 
     if None in reconstruction_dict["ReconMethodParameterValues"]:
@@ -952,11 +959,11 @@ def ad_hoc_checks(
     if items_that_should_be_checked is None:
         items_that_should_be_checked = {}
     hardcoded_items = {
-        "InjectedRadioactivityUnits": "MBq",
-        "SpecificRadioactivityUnits": ["Bq/g", "MBq/ug"],
-        "InjectedMassUnits": "ug",
-        "MolarActivityUnits": "GBq/umolug",
-        "MolecularWeightUnits": "g/mol",
+        'InjectedRadioactivityUnits': ['MBq', 'mCi'],
+        'SpecificRadioactivityUnits': ['Bq/g', 'MBq/ug'],
+        'InjectedMassUnits': 'ug',
+        'MolarActivityUnits': 'GBq/umolug',
+        'MolecularWeightUnits': 'g/mol'
     }
 
     # if none are
@@ -1120,3 +1127,25 @@ def hash_fields(**fields):
     hash_hex = hashlib.md5(hash_string.encode("utf-8")).hexdigest()
 
     return f"{hash_return_string}{hash_hex}"
+
+
+def first_middle_last_frames_to_text(
+    four_d_array_like_object, output_folder, step_name="_step_name_"
+):
+    frames = [
+        0,
+        four_d_array_like_object.shape[-1] // 2,
+        four_d_array_like_object.shape[-1] - 1,
+    ]
+    frames_to_record = []
+    for f in frames:
+        frames_to_record.append(four_d_array_like_object[:, :, :, f])
+
+    # now collect a single 2d slice from the "middle" of the 3d frames in frames_to_record
+    for index, frame in enumerate(frames_to_record):
+        numpy.savetxt(
+            output_folder / f"{step_name}_frame_{frames[index]}.tsv",
+            frames_to_record[index][:, :, frames_to_record[index].shape[2] // 2],
+            delimiter="\t",
+            fmt="%s",
+        )

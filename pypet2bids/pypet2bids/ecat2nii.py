@@ -10,7 +10,10 @@ import datetime
 import nibabel
 import numpy
 import pathlib
-from pypet2bids.read_ecat import read_ecat
+from pypet2bids.read_ecat import (
+    read_ecat,
+    code_dir,
+)  # we use code_dir for ecat debugging
 import os
 import pickle
 import logging
@@ -21,7 +24,15 @@ except ModuleNotFoundError:
     import pypet2bids.helper_functions as helper_functions
 
 
-# logger = helper_functions.logger('pypet2bids')
+# debug variable
+# save steps for debugging, for mor infor see ecat_testing/README.md
+ecat_save_steps = os.environ.get("ECAT_SAVE_STEPS", 0)
+if ecat_save_steps == "1":
+    # check to see if the code directory is available, if it's not create it and
+    # the steps dir to save outputs created if ecat_save_steps is set to 1
+    steps_dir = code_dir.parent / "ecat_testing" / "steps"
+    if not steps_dir.is_dir():
+        os.makedirs(code_dir.parent / "ecat_testing" / "steps", exist_ok=True)
 
 logger = logging.getLogger("pypet2bids")
 
@@ -97,11 +108,39 @@ def ecat2nii(
             f"type(ecat_pixel_data)={type(ecat_pixel_data)} instead."
         )
 
+    # debug step #6 view data as passed to ecat2nii method
+    if ecat_save_steps == "1":
+        # collect only the first, middle, and last frames from pixel_data_matrix_4d as first, middle, and last
+        # frames are typically the most interesting
+        frames = [0, len(data) // 2, -1]
+        frames_to_record = []
+        for f in frames:
+            frames_to_record.append(data[:, :, :, f])
+
+        # now collect a single 2d slice from the "middle" of the 3d frames in frames_to_record
+        slice_to_record = []
+        for index, frame in enumerate(frames_to_record):
+            numpy.savetxt(
+                steps_dir / f"6_ecat2nii_python_{index}.tsv",
+                frames_to_record[index][:, :, frames_to_record[index].shape[2] // 2],
+                delimiter="\t",
+                fmt="%s",
+            )
+
+        helper_functions.first_middle_last_frames_to_text(
+            four_d_array_like_object=data,
+            output_folder=steps_dir,
+            step_name="6_ecat2nii_python",
+        )
+
+    # set the byte order and the pixel data type from the input array
+    pixel_data_type = data.dtype
+
     # check for TimeZero supplied via kwargs
     if kwargs.get("TimeZero", None):
         TimeZero = kwargs["TimeZero"]
     else:
-        logger.warn(
+        logger.warning(
             "Metadata TimeZero is missing -- set to ScanStart or empty to use the scanning time as "
             "injection time"
         )
@@ -133,7 +172,7 @@ def ecat2nii(
             sub_headers[0]["Z_DIMENSION"],
             main_header["NUM_FRAMES"],
         ),
-        dtype=numpy.dtype(">f4"),
+        dtype=">f4",
     )
 
     # collect timing information
@@ -147,13 +186,10 @@ def ecat2nii(
         range(img_shape[3])
     ):  # Don't throw stones working from existing matlab code
         print(f"Loading frame {index + 1}")
-        # save out our slice of data before flip to a text file to compare w/ matlab data
         img_temp[:, :, :, index] = numpy.flip(
             numpy.flip(
                 numpy.flip(
-                    data[:, :, :, index].astype(numpy.dtype(">f4"))
-                    * sub_headers[index]["SCALE_FACTOR"],
-                    1,
+                    data[:, :, :, index] * sub_headers[index]["SCALE_FACTOR"], 1
                 ),
                 2,
             ),
@@ -179,13 +215,59 @@ def ecat2nii(
             prompts.append(0)
             randoms.append(0)
 
+    # debug step #7 view data after flipping into nifti space/orientation
+    if ecat_save_steps == "1":
+        helper_functions.first_middle_last_frames_to_text(
+            four_d_array_like_object=img_temp,
+            output_folder=steps_dir,
+            step_name="7_flip_ecat2nii_python",
+        )
+
+    # so the only real difference between the matlab code and the python code is that that we aren't manually
+    # scaling the date to 16 bit integers.
+    rg = img_temp.max() - img_temp.min()
+    if rg != 32767:
+        max_img = img_temp.max()
+        img_temp = img_temp / max_img * 32767
+        sca = max_img / 32767
+        min_img = img_temp.min()
+        if min_img < -32768:
+            img_temp = img_temp / (min_img * -32768)
+            sca = sca * (min_img * -32768)
+    if ecat_save_steps == "1":
+        with open(os.path.join(steps_dir, "8.5_sca.txt"), "w") as sca_file:
+            sca_file.write(f"Scaling factor: {sca}\n")
+            sca_file.write(
+                f"Scaling factor * ECAT Cal Factor: {sca * main_header['ECAT_CALIBRATION_FACTOR']}\n"
+            )
+
+    # scale image to 16 bit
+    final_image = img_temp.astype(numpy.single)
+
+    # debug step 8 check after "rescaling" to 16 bit
+    if ecat_save_steps == "1":
+        helper_functions.first_middle_last_frames_to_text(
+            four_d_array_like_object=final_image,
+            output_folder=steps_dir,
+            step_name="8_rescale_to_16_ecat2nii_python",
+        )
+
     ecat_cal_units = main_header[
         "CALIBRATION_UNITS"
     ]  # Header field designating whether data has already been calibrated
     if ecat_cal_units == 1:  # Calibrate if it hasn't been already
-        final_image = img_temp * main_header["ECAT_CALIBRATION_FACTOR"]
+        final_image = (
+            numpy.round(final_image) * main_header["ECAT_CALIBRATION_FACTOR"] * sca
+        )
+        # this debug step may not execute if we're not calibrating the scan, but that's okay
+        if ecat_save_steps == "1":
+            helper_functions.first_middle_last_frames_to_text(
+                four_d_array_like_object=final_image,
+                output_folder=steps_dir,
+                step_name="9_scal_cal_units_ecat2nii_python",
+            )
     else:  # And don't calibrate if CALIBRATION_UNITS is anything else but 1
-        final_image = img_temp
+        final_image = numpy.round(final_image) * sca
 
     qoffset_x = -1 * (
         (
@@ -210,90 +292,49 @@ def ecat2nii(
 
     # build affine if it's not included in function call
     if not affine:
-        t = numpy.identity(4)
-        t[0, 0] = sub_headers[0]["X_PIXEL_SIZE"] * 10
-        t[1, 1] = sub_headers[0]["Y_PIXEL_SIZE"] * 10
-        t[2, 2] = sub_headers[0]["Z_PIXEL_SIZE"] * 10
-
-        t[3, 0] = qoffset_x
-        t[3, 1] = qoffset_y
-        t[3, 2] = qoffset_z
-
-        # note this affine is the transform of of a nibabel ecat object's affine
-        affine = t
+        mat = (
+            numpy.diag(
+                [
+                    sub_headers[0]["X_PIXEL_SIZE"],
+                    sub_headers[0]["Y_PIXEL_SIZE"],
+                    sub_headers[0]["Z_PIXEL_SIZE"],
+                ]
+            )
+            * 10
+        )
+        affine = nibabel.affines.from_matvec(mat, [qoffset_x, qoffset_y, qoffset_z])
 
     img_nii = nibabel.Nifti1Image(final_image, affine=affine)
 
-    # populating nifti header
-    if img_nii.header["sizeof_hdr"] != 348:
-        img_nii.header["sizeof_hdr"] = 348
-    # img_nii.header['dim_info'] is populated on object creation
-    # img_nii.header['dim']  is populated on object creation
-    img_nii.header["intent_p1"] = 0
-    img_nii.header["intent_p2"] = 0
-    img_nii.header["intent_p3"] = 0
-    # img_nii.header['datatype'] # created on invocation seems to be 16 or int16
-    # img_nii.header['bitpix'] # also automatically created and inferred 32 as of testing w/ cimbi dataset
-    # img_nii.header['slice_type'] # defaults to 0
-    # img_nii.header['pixdim'] # appears as 1d array of length 8 we rescale this
-    img_nii.header["pixdim"] = numpy.array(
-        [
-            1,
-            sub_headers[0]["X_PIXEL_SIZE"] * 10,
-            sub_headers[0]["Y_PIXEL_SIZE"] * 10,
-            sub_headers[0]["Z_PIXEL_SIZE"] * 10,
-            0,
-            0,
-            0,
-            0,
-        ]
-    )
-    img_nii.header["vox_offset"] = 352
+    # debug step 10, check to see what's happened after we've converted our numpy array in to a nibabel object
+    if ecat_save_steps == "1":
+        helper_functions.first_middle_last_frames_to_text(
+            four_d_array_like_object=img_nii.dataobj,
+            output_folder=steps_dir,
+            step_name="10_save_nii_ecat2nii_python",
+        )
 
-    # TODO img_nii.header['scl_slope'] # this is a NaN array by default but apparently it should be the dose calibration
-    #  factor img_nii.header['scl_inter'] # defaults to NaN array
-    img_nii.header["scl_slope"] = 0
-    img_nii.header["scl_inter"] = 0
-    img_nii.header["slice_end"] = 0
-    img_nii.header["slice_code"] = 0
-    img_nii.header["xyzt_units"] = 10
-    img_nii.header["cal_max"] = final_image.min()
-    img_nii.header["cal_min"] = final_image.max()
-    img_nii.header["slice_duration"] = 0
-    img_nii.header["toffset"] = 0
+    img_nii.header.set_slope_inter(slope=1, inter=0)
+    img_nii.header.set_xyzt_units("mm", "sec")
+    img_nii.header.set_qform(affine, code=1)
+    img_nii.header.set_sform(affine, code=1)
+    # No setter methods for these
+    img_nii.header["cal_max"] = final_image.max()
+    img_nii.header["cal_min"] = final_image.min()
     img_nii.header["descrip"] = "OpenNeuroPET ecat2nii.py conversion"
-    # img_nii.header['aux_file'] # ignoring as this is set to '' in matlab
-    img_nii.header["qform_code"] = 0
-    img_nii.header["sform_code"] = 1  # 0: Arbitrary coordinates;
-    # 1: Scanner-based anatomical coordinates;
-    # 2: Coordinates aligned to another file's, or to anatomical "truth" (co-registration);
-    # 3: Coordinates aligned to Talairach-Tournoux Atlas; 4: MNI 152 normalized coordinates
 
-    img_nii.header["quatern_b"] = 0
-    img_nii.header["quatern_c"] = 0
-    img_nii.header["quatern_d"] = 0
-    # Please explain this
-    img_nii.header["qoffset_x"] = qoffset_x
-    img_nii.header["qoffset_y"] = qoffset_y
-    img_nii.header["qoffset_z"] = qoffset_z
-    img_nii.header["srow_x"] = numpy.array(
-        [sub_headers[0]["X_PIXEL_SIZE"] * 10, 0, 0, img_nii.header["qoffset_x"]]
-    )
-    img_nii.header["srow_y"] = numpy.array(
-        [0, sub_headers[0]["Y_PIXEL_SIZE"] * 10, 0, img_nii.header["qoffset_y"]]
-    )
-    img_nii.header["srow_z"] = numpy.array(
-        [0, 0, sub_headers[0]["Z_PIXEL_SIZE"] * 10, img_nii.header["qoffset_z"]]
-    )
-
-    img_nii.header["intent_name"] = ""
-    img_nii.header["magic"] = "n + 1 "
-
-    # nifti header items to include
-    img_nii.header.set_xyzt_units("mm", "unknown")
-
-    # save nifti
     nibabel.save(img_nii, nifti_file)
+
+    # run step 11 in debug
+    if ecat_save_steps == "1":
+        # load nifti file with nibabel
+        written_img_nii = nibabel.load(nifti_file)
+
+        helper_functions.first_middle_last_frames_to_text(
+            four_d_array_like_object=written_img_nii.dataobj,
+            output_folder=steps_dir,
+            step_name="11_read_saved_nii_python",
+        )
 
     # used for testing veracity of nibabel read and write.
     if save_binary:

@@ -55,6 +55,22 @@
       ]
     },
     {
+      "contents": "OP_OSEM3D",
+      "ReconMethodName": "Ordinary Poisson 3D Ordered Subset Expectation Maximization",
+      "ReconMethodParameterUnits": [
+        null,
+        null
+      ],
+      "ReconMethodParameterLabels": [
+        "subsets",
+        "iterations"
+      ],
+      "ReconMethodParameterValues": [
+        null,
+        null
+      ]
+    },
+    {
       "contents": "LOR-RAMLA",
       "subsets": null,
       "iterations": null,
@@ -91,46 +107,13 @@
       ]
     },
     {
-      "contents": "3DRP",
+      "contents": "3DKinahan-Rogers",
       "subsets": null,
       "iterations": null,
-      "ReconMethodName": "3D Kinahan-Rogers",
-      "ReconMethodParameterLabels": [
-        "none"
-      ],
-      "ReconMethodParameterValues": [
-        null,
-        null
-      ],
-      "ReconMethodParameterUnits": [
-        null,
-        null
-      ],
-      "ReconMethodParameterValues": [
-        null,
-        null
-      ]
-    },
-    {
-      "contents": "3D Kinahan-Rogers",
-      "subsets": null,
-      "iterations": null,
-      "ReconMethodName": "3D Kinahan-Rogers",
-      "ReconMethodParameterLabels": [
-        "none"
-      ],
-      "ReconMethodParameterValues": [
-        null,
-        null
-      ],
-      "ReconMethodParameterUnits": [
-        null,
-        null
-      ],
-      "ReconMethodParameterValues": [
-        null,
-        null
-      ]
+      "ReconMethodName": "3D Reprojection",
+      "ReconMethodParameterLabels": [],
+      "ReconMethodParameterValues": [],
+      "ReconMethodParameterUnits": []
     }
   ],
   "reconstruction_names": [
@@ -195,8 +178,8 @@
       "name": "Filtered Back Projection"
     },
     {
-      "value": "3DRP",
-      "name": "3D Kinahan-Rogers"
+      "value": "Kinahan-Rogers",
+      "name": "Reprojection"
     }
   ]
 }

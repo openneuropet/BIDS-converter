@@ -471,7 +471,11 @@ elseif strcmpi(cmd, 'hdr')
     end
     
     fname = nii_name(varargin{1}, '.hdr'); % get .hdr if it is .img
-    [b, fname] = nii_bytes(fname, 600); % v2: 544+10 gzip header
+    disp("fname of ecat at line ~474")
+    disp(fname)
+    disp("varargin{1}")
+    disp(varargin{1})
+    [b, fname] = nii_bytes(fname, 600); % v2: 544+10 gzip header 
     varargout{1} = read_hdr(b, C, fname);
    
 elseif any(strcmpi(cmd, {'img' 'load'})) 

@@ -55,6 +55,8 @@ if nargin == 0
     fs = [];
 end
 
+%ecat_save_steps = '1'
+
 if length(fs) == 0
     origpwd = pwd;
     if length(lastpath_) > 0; cd(lastpath_); end
@@ -77,7 +79,8 @@ if length(varargin) > 0
 end
 
 % open file as ieee big-endian
-fid = fopen(fs,'r','ieee-be');
+file_endianess = 'ieee-be';
+fid = fopen(fs,'r', file_endianess);
 if (fid < 0)
     error('readECAT: Problem opening file %s', fs);
 end
@@ -85,6 +88,23 @@ end
 
 %  Read in the main header info
 mh = readMainheader(fid);
+
+ecat_save_steps = getenv('ECAT_SAVE_STEPS');
+ecat_save_steps_dir = mfilename('fullpath');
+if contains(ecat_save_steps_dir, 'LiveEditorEvaluationHelper')
+    ecat_save_steps_dir = matlab.desktop.editor.getActiveFilename;
+end
+parts = strsplit(ecat_save_steps_dir, filesep);
+ecat_save_steps_dir = strjoin([parts(1:end-2), 'ecat_testing', 'steps'], filesep);
+
+% save main header output to json
+if (ecat_save_steps == '1')
+    % save main header
+    main_header_json = (jsonencode(mh, PrettyPrint=true));
+    step_1_file = fopen([ecat_save_steps_dir filesep '1_read_mh_ecat_matlab.json'], 'w');
+    fprintf(step_1_file, '%s', main_header_json);
+    fclose(step_1_file);
+end
 
 if (nargout == 1)
     return
@@ -129,6 +149,7 @@ end
 
 sh   = cell(nmat,1);
 data = cell(nmat,1);
+pixel_data_type = '';
 
 % select proper sh routine
 switch mh.file_type
@@ -173,15 +194,19 @@ for m = 1:nmat
         switch sh{m}.data_type
             case 5 % IEEE float (32 bit)
                 data{m} = fread(fid, [sz(1)*sz(2) sz(3)],'float32');
+                pixel_data_type = 'float32';
             case 6 % SUN int16
                 if (matlabVersion(1) < 6)
                     warning('old matlab version, using int16 to read')
                     data{m} = int16(fread(fid, [sz(1)*sz(2) sz(3)],'int16'));
+                    pixel_data_type = 'int16';
                 else
                     data{m} = fread(fid, [sz(1)*sz(2) sz(3)],'int16=>int16');
+                    pixel_data_type = 'int16=>int16';
                 end
             otherwise
                 warning('readECAT7: unrecognized data type');
+                pixel_data_type = 'unrecognized data type';
         end
         % other sh{m}.data_type: 2 = VAX int16,  3 = VAX int32,  4 = VAX F-float (32 bit),  7 = SUN int32
         
@@ -196,6 +221,31 @@ for m = 1:nmat
 end  % loop over matrices
 
 fclose(fid);
+if (ecat_save_steps == '1')
+    % save subheaders header
+    sub_header_json = (jsonencode(sh, PrettyPrint=true));
+    step_2_file = fopen([ecat_save_steps_dir filesep '1_read_sh_ecat_matlab.json'], 'w');
+    fprintf(step_2_file, '%s', sub_header_json);
+    fclose(step_2_file);
+
+    % write out endianess and datatype of the pixel data matrix
+    step_3_struct = {};
+    x.data_type = class(data{1});
+    x.endianess = file_endianess;
+    step_3_json = (jsonencode(x, PrettyPrint=true));
+    step_3_file = fopen([ecat_save_steps_dir filesep '3_determine_data_type_matlab.json'], 'w');
+    fprintf(step_3_file, '%s', step_3_json);
+    fclose(step_3_file);
+
+    first_middle_last_frames_to_text_cell(data, ecat_save_steps_dir, '4_read_img_ecat_matlab')
+
+    % scale if calibrated
+    % data has already been saved in the previous step (step 4) but we go ahead and do this step once more because the
+    % numbering system that's been imposed upon us to test these outputs
+    if calibrated ~0
+        first_middle_last_frames_to_text_cell(data, ecat_save_steps_dir, '5_scale_img_ecat_matlab')
+    end
+end
 
 return
 

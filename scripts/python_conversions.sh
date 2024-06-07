@@ -299,7 +299,9 @@ FrameTimesStart=[0] \
 FrameDuration=[300] \
 AttenuationCorrection="MR-corrected" \
 RandomsCorrectionMethod="DLYD" \
-ReconFilterSize=1 
+ReconFilterSize=1 \
+--silent
+#DecayCorrectionFactor="[1]" \
 
 # General Electric Medical Systems Signa PET-MR
 # ----------------------------------------------
@@ -327,7 +329,8 @@ ReconFilterType="n/a" \
 ReconFilterSize=1 \
 ReconMethodParameterLabels="[none, none]" \
 ReconMethodParameterUnits="[none, none]" \
-ReconMethodParameterValues="[0, 0]"
+ReconMethodParameterValues="[0, 0]" \
+--silent
 
 
 # General Electric Medical Systems Advance
@@ -350,11 +353,15 @@ ImageDecayCorrected='true' \
 AcquisitionMode='list mode' \
 ImageDecayCorrectionTime="0" \
 ScatterCorrectionMethod="Convolution subtraction" \
-FrameDuration=[98000] \
+FrameDuration="[98000]" \
 ScanStart="0" \
 ReconMethodParameterLabels="[none]" \
 ReconMethodParameterUnits="[none]" \
-ReconMethodParameterValues="[0, 0]"
+ReconMethodParameterValues="[0, 0]" \
+--silent
+#TimeZero="13:39:41" \
+#AttenuationCorrection='n/a' \
+
 
 echo "${SOURCE_FOLDER}/GeneralElectricAdvance-NIMH"
 dcm2niix4pet $SOURCE_FOLDER/GeneralElectricAdvance-NIMH/long_trans --destination-path $DESTINATION/sub-GeneralElectricAdvanceLongNIMH/pet --kwargs \
@@ -374,38 +381,108 @@ ImageDecayCorrected='false' \
 AttenuationCorrection='measured' \
 AcquisitionMode='list mode' \
 ImageDecayCorrectionTime="0" \
-FrameDuration=[98000] \
+FrameDuration="[98000]" \
 ScatterCorrectionMethod="Gaussian Fit" \
 ScanStart="0" \
 ReconMethodParameterLabels="[none, none]" \
 ReconMethodParameterUnits="[none, none]" \
-ReconMethodParameterValues="[0, 0]"
+ReconMethodParameterValues="[0, 0]" \
+--silent
+
+# Johns Hopkins University
+# ------------------------
 
 # Siemens HRRT
 # ------------
-echo "${SOURCE_FOLDER}/SiemensHRRT-JHU/Hoffman.v"
-ecatpet2bids $SOURCE_FOLDER/SiemensHRRT-JHU/Hoffman.v --nifti $DESTINATION/sub-SiemensHRRTJHU/pet/sub-SiemensHRRTJHU_pet.nii --convert --kwargs \
-Manufacturer=Siemens \
-ManufacturersModelName=HRRT \
-InstitutionName="JHU" \
-BodyPart="Phantom" \
-Units="Bq/mL" \
-TracerName=FDG \
-TracerRadionuclide=F18 \
-InjectedRadioactivity=81.24 \
-SpecificRadioactivity="1.3019e+04" \
-ModeOfAdministration=infusion \
-AcquisitionMode="list mode" \
-ImageDecayCorrected="true" \
+echo "${SOURCE_FOLDER}/SiemensHRRT-JHU"
+ecatpet2bids $SOURCE_FOLDER/SiemensHRRT-JHU/Hoffman.v \
+--nifti $DESTINATION/sub-SiemensHRRTJHU/pet/sub-SiemensHRRTJHU_pet.nii.gz \
+--convert \
+--kwargs \
+Manufacturer='Siemens' \
+ManufacturersModelName='HRRT' \
+InstitutionName='Johns Hopkins University, USA' \
+BodyPart='Phantom' \
+Units='Bq/mL' \
+TracerName='FDG' \
+TracerRadionuclide='F18' \
+InjectedRadioactivity=0.788 \
+InjectedRadioactivityUnits='mCi' \
+SpecificRadioactivity='n/a' \
+SpecificRadioactivityUnits='n/a' \
+ModeOfAdministration='infusion' \
+AcquisitionMode='list mode' \
+ImageDecayCorrected=true \
 ImageDecayCorrectionTime=0 \
-ReconFilterSize=0 \
-AttenuationCorrection="10-min transmission scan" \
-SpecificRadioactivityUnits="Bq" \
+AttenuationCorrection='transmission scan with a 137Cs point source' \
+ScatterCorrectionMethod='Single-scatter simulation' \
 ScanStart=0 \
-InjectionStart=0 \
-InjectedRadioactivityUnits='Bq' \
+InjectionStart=-2183 \
+ReconMethodParameterLabels='["subsets", "iterations"]' \
+ReconMethodParameterUnits='["none", "none"]' \
+ReconMethodParameterValues='[16, 2]' \
+ReconFilterType='Gaussian' \
+ReconFilterSize=2
+
+# General Electric Medical Systems Advance
+# -----------------------------------------
+dcm2niix4pet $SOURCE_FOLDER/GeneralElectricAdvance-JHU/ --destination-path $DESTINATION/sub-GeneralElectricAdvanceJHU/pet --kwargs \
+Manufacturer='GE MEDICAL SYSTEMS' \
+ManufacturersModelName='GE Advance' \
+InstitutionName='Johns Hopkins University, USA' \
+BodyPart='Phantom' \
+Units='Bq/mL' \
+TracerName='FDG' \
+TracerRadionuclide='F18' \
+InjectedRadioactivity=0.788 \
+InjectedRadioactivityUnits='mCi' \
+SpecificRadioactivity='n/a' \
+SpecificRadioactivityUnits='n/a' \
+ModeOfAdministration='infusion' \
+ScanStart=0 \
+InjectionStart=-5336 \
+FrameTimesStart="[0]" \
+AcquisitionMode='list mode' \
+ImageDecayCorrected='true' \
+ImageDecayCorrectionTime=0 \
+ScatterCorrectionMethod='Single-scatter simulation' \
+ReconMethodParameterLabels='["none"]' \
+ReconMethodParameterUnits='["none"]' \
+ReconMethodParameterValues='[0]' \
 ReconFilterType="none" \
-ScatterFraction='[0.0]' \
-PromptRate='[0.0]' \
-RandomRate='[0.0]' \
-SinglesRate='[0.0]'
+ReconFilterSize=0 \
+AttenuationCorrection='2D-acquired transmission scan with a 68Ge pin'
+
+
+
+# Chesapeake Medical Imaging
+# --------------------------
+
+
+# Canon Cartesion Prime PET-CT
+# ----------------------------
+dcm2niix4pet $SOURCE_FOLDER/CanonCartesionPrimePETCT-NIA --destination-path $DESTINATION/sub-CanonCartesionPrimeNIA/pet --kwargs \
+Manufacturer='Canon Medical Systems' \
+ManufacturersModelName='Cartesion Prime' \
+InstitutionName='Chesapeake Medical Imaging, USA' \
+BodyPart='Phantom' \
+Units='Bq/mL' \
+TracerName='FDG' \
+TracerRadionuclide='F18' \
+InjectedRadioactivity=0.87 \
+InjectedRadioactivityUnits='mCi' \
+SpecificRadioactivity='n/a' \
+SpecificRadioactivityUnits='n/a' \
+ModeOfAdministration='infusion' \
+ScanStart=0 \
+InjectionStart=-2312 \
+FrameTimesStart="[0, 300, 600, 900]" \
+AcquisitionMode='list mode' \
+ImageDecayCorrected='true' \
+ImageDecayCorrectionTime=0 \
+ReconMethodParameterValues="[24, 5]" \
+ReconMethodParameterUnits="['none', 'none']" \
+ReconMethodParameterLabels="['subsets', 'iterations']" \
+ReconFilterType="Gaussian" \
+ReconFilterSize=4
+

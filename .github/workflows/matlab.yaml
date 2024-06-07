@@ -19,7 +19,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      TEST_ECAT_PATH: ${{ github.workspace }}/ecat_validation/synthetic_ecat_integer.v.gz
+      TEST_ECAT_PATH: ${{ github.workspace }}/ecat_validation/synthetic_ecat_integer_16x16x16x4.v.gz
       MATLAB_CODE_PATH: ${{ github.workspace }}/matlab/
       METADATA_PATH: ${{ github.workspace }}/metadata/
 
@@ -31,6 +31,33 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v2
 
+        # matlab not supported on MacOS!! at this time
+      - name: Perform setup-matlab
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          release: R2023a
+          cache: true
+          products: >
+            Simulink
+            Simulink_Test
+            Bioinformatics_Toolbox                                
+            Curve_Fitting_Toolbox                                 
+            HDL_Coder                                             
+            MATLAB_Coder                                          
+            MATLAB_Compiler                                       
+            MATLAB_Compiler_SDK                                   
+            MATLAB_Report_Generator                               
+            MATLAB_Test                                           
+            Medical_Imaging_Toolbox                               
+            SimBiology                                            
+            Simulink_Check                                        
+            Simulink_Coder                                        
+            Simulink_Compiler                                     
+            Simulink_PLC_Coder                                    
+            Simulink_Test                                         
+
+        if: matrix.os == 'ubuntu-latest'
+
       - name: Debug
         uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
@@ -38,20 +65,21 @@ jobs:
         with:
           limit-access-to-actor: true
 
-        # matlab not supported on MacOS!! at this time
-      - name: Perform setup-matlab
-        uses: matlab-actions/setup-matlab@v1
-        if: matrix.os == 'ubuntu-latest'
+      - name: Get list of Matlab Toolboxes
+        uses: matlab-actions/run-command@v2
+        with:
+         command: |
+           ver
 
         # Again only running this on ubuntu
       - name: Add Matlab Code Folder to Path and Run Tests
-        uses: matlab-actions/run-command@v1
+        uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath('${{ env.MATLAB_CODE_PATH }}');
-            addpath('${{ env.MATLAB_CODE_PATH }}/unit_tests');
-            addpath('${{ env.MATLAB_CODE_PATH }}/template_txt');
-            addpath('${{ env.TEST_ECAT_PATH }}');
-            addpath('${{ env.METADATA_PATH }}');
-            ecat2nii_test
+            addpath('${{ env.MATLAB_CODE_PATH }}')
+            addpath('${{ env.MATLAB_CODE_PATH }}/unit_tests')
+            addpath('${{ env.MATLAB_CODE_PATH }}/template_txt')
+            addpath('${{ github.workspace }}/ecat_validation')
+            addpath('${{ env.METADATA_PATH }}')
+            ecat2nii_test('${{ env.TEST_ECAT_PATH }}')
         if: matrix.os == 'ubuntu-latest'
