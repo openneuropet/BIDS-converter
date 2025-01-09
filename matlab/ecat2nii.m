@@ -211,12 +211,12 @@ for j=1:length(FileListIn)
                 Sca      = Sca*MinImg/(-32768);
             end
 
-            % save scaling factor to file located at ecat_save_steps_dir/8.5_sca_matlab.txt
-            fid = fopen([ecat_save_steps_dir filesep '8.5_sca_matlab.txt'],'w');
-            fprintf(fid,'Scaling factor: %10e\n',Sca);
-            x = mh.ecat_calibration_factor * Sca;
-            fprintf(fid,'Scaling factor * ECAT Cal Factor: %10.10f\n',x);
-            fclose(fid);
+            % % save scaling factor to file located at ecat_save_steps_dir/8.5_sca_matlab.txt
+            % fid = fopen([ecat_save_steps_dir filesep '8.5_sca_matlab.txt'],'w');
+            % fprintf(fid,'Scaling factor: %10e\n',Sca);
+            % x = mh.ecat_calibration_factor * Sca;
+            % fprintf(fid,'Scaling factor * ECAT Cal Factor: %10.10f\n',x);
+            % fclose(fid);
         end
 
         % save debugging step 8 - rescale to 16 bits
